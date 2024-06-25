@@ -8,4 +8,5 @@ train:
   learning_rate: 0.00002
   train_bs: 8
   val_bs: 4
+  num_epochs: 100
 
