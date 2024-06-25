@@ -3,8 +3,8 @@ import copy
 import torch
 from tqdm import tqdm
 
-from src.tasks.data_utils.preprocess import PreprocessPipeline
-from src.tasks.data_utils.dataset import TableDataset
+from src.data_utils.preprocess import PreprocessPipeline
+from src.data_utils.dataset import TableDataset
 
 from transformers import AutoModel, TapasForQuestionAnswering, TapasTokenizer, AutoTokenizer, AdamW
 
