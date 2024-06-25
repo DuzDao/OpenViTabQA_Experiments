@@ -1,7 +1,7 @@
 dataset:
   test: /content/drive/MyDrive/Projects/DS204/dataset/test.csv
   train: /content/drive/MyDrive/Projects/DS204/dataset/train.csv
-  val: /content/drive/MyDrive/Projects/DS204/dataset/val.csv
+  val: /content/drive/MyDrive/Projects/DS204/dataset/valid.csv
 
 train: 
   checkpoint: /content/drive/MyDrive/Projects/DS204/models/Tapas/checkpoints/best_model.pt
