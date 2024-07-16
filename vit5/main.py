@@ -1,6 +1,7 @@
 from loguru import logger
 import yaml
 import argparse
+from tqdm import tqdm
 
 from src.tasks.train import train_main
 from src.tasks.preprocess_data import preprocess_main
@@ -20,6 +21,7 @@ def main(args):
                colorize=LOG_COLORIZE,
                backtrace=LOG_BACKTRACK,
                diagnose=LOG_DIAGNOSE)
+    logger.add(tqdm.write, end="")
 
     # read config file
     with open(args.conf) as conf_file:
@@ -49,9 +51,9 @@ if __name__ == "__main__":
                     - Get preprocesses data: 'preprocess'""")
     
     args_parser.add_argument(
-        '--log', dest='log_file', default='info.log',
+        '--log', dest='log_file', default='/content/drive/MyDrive/tableqa/logs/info.log',
         help = """Provide path of logging file.
-                  Default = "info.log"
+                  Default = "/content/drive/MyDrive/tableqa/logs/info.log"
                """)
     
     args = args_parser.parse_args()
