@@ -10,13 +10,16 @@ from src.dataset.tableqa_dataset import TableQADataset, get_dataloader
 def train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device, config):
     model.to(device)
     model.train()
+    total_loss = 0.0
+    total_cnt = 0
+
     for batch in tqdm(train_loader, desc="Training epoch {}".format(epoch)):
         questions, answers, tables = batch["questions"], batch["answers"], batch["table"]
         inputs = tokenizer(questions, tables,
                            padding=config["tokenizer"]["padding"],
                            truncation=config["tokenizer"]["truncation"],
                            return_tensors=config["tokenizer"]["return_tensors"],
-                           max_length=config["tokenizer"]["max_length"]["input"])
+                           max_length=config["tokenizer"]["max_length"]["input"]).input_ids
         with tokenizer.as_target_tokenizer():
             labels = tokenizer(answers,
                                max_length=config["tokenizer"]["max_length"]["label"],
@@ -27,13 +30,16 @@ def train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-        outs = model(inputs, labels)
+        outs = model(input_ids = inputs, labels = labels)
         loss = outs.loss
+        total_loss += loss
+        total_cnt += len(questions)
         loss.backward()
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        return loss
+
+    return total_loss/total_cnt
 
 
 def eval(model, tokenizer, eval_loader, epoch, device, config):
@@ -52,7 +58,7 @@ def train_main(config, logger):
 
     # device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info("DEVICE USED: {}".format(device.upper()))
+    logger.info("DEVICE USED: {}".format(str(device).upper()))
 
     # dataset
     train_set = TableQADataset(config["dataset"]["preprocessed"]["train"])
@@ -60,6 +66,10 @@ def train_main(config, logger):
     train_loader = get_dataloader(train_set, config["train"]["bs"])
     dev_loader = get_dataloader(dev_set, config["train"]["bs"])
     logger.info("LOADED DATASET")
+
+    # tokenizer and model
+    tokenizer = AutoTokenizer.from_pretrained("VietAI/vit5-base")
+    model = AutoModelForSeq2SeqLM.from_pretrained("VietAI/vit5-base")
 
     # optimizer
     optimizer = AdamW(model.parameters(), config["train"]["lr"])
@@ -70,9 +80,7 @@ def train_main(config, logger):
         lambda step: min(step / 100, 1.0),
     )
 
-    # tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained("VietAI/vit5-base")
-    model = AutoModelForSeq2SeqLM.from_pretrained("VietAI/vit5-base")
+    #checkpoint
     checkpoint_file = os.path.join(config["train"]["checkpoint_dir"], "vit5_best.pt")
     if os.path.exists(checkpoint_file):
         checkpoint = torch.load(checkpoint_file)
@@ -89,4 +97,3 @@ def train_main(config, logger):
     for epoch in range(start_epoch, config["train"]["num_epochs"]):
         loss = train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device, config)
         logger.info("Loss reaches {}.".format(round(loss, 4)))
-        

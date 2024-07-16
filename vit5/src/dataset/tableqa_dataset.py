@@ -12,7 +12,7 @@ class TableQADataset:
 
     def __getitem__(self, idx):
         return {
-            "table": self.df.iloc[idx]["table"],
+            "table": self.df.iloc[idx]["table_html"],
             "questions": self.df.iloc[idx]["question"],
             "answers": self.df.iloc[idx]["answer"]
         }
