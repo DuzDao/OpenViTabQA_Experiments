@@ -91,7 +91,6 @@ def train_main(config, logger):
         checkpoint = torch.load(checkpoint_file)
         best_val_loss = checkpoint["best_val_loss"]
         model.load_state_dict(checkpoint["model_state_dict"])
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
         logger.info("LOADED CHECKPOINT FROM EPOCH {}".format(start_epoch))
     else:
@@ -116,7 +115,6 @@ def train_main(config, logger):
                     "epoch": epoch,
                     "best_val_loss": best_val_loss,
                     "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
                 },
                 checkpoint_file
             )
