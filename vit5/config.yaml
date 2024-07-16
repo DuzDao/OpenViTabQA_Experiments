@@ -1,0 +1,9 @@
+dataset:
+  raw: 
+    train: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/dataset/qa_train.csv
+    dev: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/dataset/qa_dev.csv
+    test: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/dataset/qa_test.csv
+  preprocessed:
+    train: /content/drive/MyDrive/train.csv
+    dev: /content/drive/MyDrive/dev.csv
+    test: /content/drive/MyDrive/test.csv
