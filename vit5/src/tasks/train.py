@@ -2,12 +2,11 @@ import os
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AdamW
-from torch.optim.lr_scheduler import LambdaLR
 
 from src.dataset.tableqa_dataset import TableQADataset, get_dataloader
 
 
-def train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device, config):
+def train(model, tokenizer, train_loader, optimizer, epoch, device, config):
     model.to(device)
     model.train()
     total_loss = 0.0
@@ -22,10 +21,9 @@ def train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device
         total_cnt += len(inputs)
         loss.backward()
         optimizer.step()
-        lr_scheduler.step()
         optimizer.zero_grad()
         
-    return total_loss/total_cnt, lr_scheduler.get_last_lr()
+    return total_loss, total_loss/total_cnt
 
 
 def eval(model, tokenizer, eval_loader, epoch, device, config):
@@ -39,7 +37,7 @@ def eval(model, tokenizer, eval_loader, epoch, device, config):
             outs = model(input_ids = inputs, labels = labels)
             total_loss += outs.loss
             total_cnt += len(inputs)
-    return total_loss/total_cnt
+    return total_loss, total_loss/total_cnt
 
 
 def get_inputs_and_labels(tokenizer, config, batch, device):
@@ -87,12 +85,6 @@ def train_main(config, logger):
     # optimizer
     optimizer = AdamW(model.parameters(), config["train"]["lr"])
 
-    # lr scheduler
-    lr_scheduler = LambdaLR(
-        optimizer,
-        lambda step: min(step / 100, 1.0),
-    )
-
     #checkpoint
     checkpoint_file = os.path.join(config["train"]["checkpoint_dir"], "vit5_best.pt")
     if os.path.exists(checkpoint_file):
@@ -100,7 +92,6 @@ def train_main(config, logger):
         best_val_loss = checkpoint["best_val_loss"]
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
         logger.info("LOADED CHECKPOINT FROM EPOCH {}".format(start_epoch))
     else:
@@ -110,10 +101,10 @@ def train_main(config, logger):
 
     # training
     for epoch in range(start_epoch, config["train"]["num_epochs"]):
-        loss, last_lr = train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device, config)
-        logger.info("Loss reaches {}.\nLearning rate set into {}".format(loss, last_lr))
-        val_loss = eval(model, tokenizer, dev_loader, epoch, device, config)
-        logger.info("Loss reaches {}.".format(val_loss))
+        total_loss, loss = train(model, tokenizer, train_loader, optimizer, epoch, device, config)
+        logger.info("Avg loss reaches {}.\nTotal loss reaches {}".format(loss, total_loss))
+        total_val_loss, val_loss = eval(model, tokenizer, dev_loader, epoch, device, config)
+        logger.info("Avg loss reaches {}.\nTotal loss reaches {}".format(val_loss, total_val_loss))
         
         # save best model by loss
         early_stopping_cnt = 0
@@ -126,7 +117,6 @@ def train_main(config, logger):
                     "best_val_loss": best_val_loss,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "lr_scheduler_state_dict": lr_scheduler.state_dict(),
                 },
                 checkpoint_file
             )
