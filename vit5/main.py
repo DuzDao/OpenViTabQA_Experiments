@@ -38,18 +38,18 @@ if __name__ == "__main__":
     args_parser = argparse.ArgumentParser()
 
     args_parser.add_argument(
-        '--config', 'conf', required=True,
+        '--config', dest='conf', required=True,
         help = 'The path of config file (.yaml file)')
 
     args_parser.add_argument(
-        '--task', 'task', required=True,
+        '--task', dest='task', required=True,
         help = """We have 2 task available: 
                     - Training task: 'train'
                     - Inference task: 'predict' | 'inference'
                     - Get preprocesses data: 'preprocess'""")
     
     args_parser.add_argument(
-        '--log', 'log_file', default='info.log',
+        '--log', dest='log_file', default='info.log',
         help = """Provide path of logging file.
                   Default = "info.log"
                """)
