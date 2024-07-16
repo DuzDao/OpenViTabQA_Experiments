@@ -1,8 +1,9 @@
 from torch.utils.data import DataLoader
+import pandas as pd
 
 class TableQADataset:
-    def __init__(self, df):
-        self.df = df
+    def __init__(self, df_path):
+        self.df = pd.read_csv(df_path)
 
 
     def __len__(self):

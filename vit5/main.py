@@ -27,7 +27,7 @@ def main(args):
 
     # do task
     if args.task == "train":
-        train_main(config)
+        train_main(config, logger)
     elif args.task == "preprocess":
         preprocess_main(config)
     else:
