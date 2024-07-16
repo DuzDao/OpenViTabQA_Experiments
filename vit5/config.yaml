@@ -4,9 +4,9 @@ dataset:
     dev: ...
     test: ...
   preprocessed:
-    train: /content/drive/MyDrive/tableqa/train.csv
-    dev: /content/drive/MyDrive/tableqa/dev.csv
-    test: /content/drive/MyDrive/tableqa/test.csv
+    train: /content/OpenViTabQA_Experiments/vit5/src/data/train.csv
+    dev: /content/OpenViTabQA_Experiments/vit5/src/data/dev.csv
+    test: /content/OpenViTabQA_Experiments/vit5/src/data/test.csv
 
 tokenizer: 
   padding: max_length
