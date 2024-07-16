@@ -116,7 +116,9 @@ def train_main(config, logger):
         logger.info("Loss reaches {}.".format(val_loss))
         
         # save best model by loss
+        early_stopping_cnt = 0
         if val_loss < best_val_loss:
+            early_stopping_cnt = 0
             best_val_loss = val_loss
             torch.save(
                 {
@@ -128,4 +130,9 @@ def train_main(config, logger):
                 },
                 checkpoint_file
             )
-            logger.info("BEST MODEL SAVED.")
+            logger.info("BEST MODEL SAVED")
+        else:
+            early_stopping_cnt += 1
+            if early_stopping_cnt == config["train"]["early_stopping_patience"]:
+                logger.info("EARLY STOPPING")
+                break
