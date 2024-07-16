@@ -4,9 +4,9 @@ dataset:
     dev: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/dataset/qa_dev.csv
     test: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/dataset/qa_test.csv
   preprocessed:
-    train: /content/train.csv
-    dev: /content/dev.csv
-    test: /content/test.csv
+    train: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/easy/processed_data/train.csv
+    dev: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/easy/processed_data/dev.csv
+    test: /content/drive/MyDrive/CaNhanHuynhNgan/Research_Space/ViWikiTableQA/2.Models/easy/processed_data/test.csv
 
 tokenizer: 
   padding: max_length
@@ -14,7 +14,7 @@ tokenizer:
   return_tensors: pt
   max_length: 
     input: 1024
-    label: 64
+    label: 32
 
 train:
   checkpoint_dir: /content/

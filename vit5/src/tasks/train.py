@@ -96,4 +96,4 @@ def train_main(config, logger):
     # train
     for epoch in range(start_epoch, config["train"]["num_epochs"]):
         loss = train(model, tokenizer, train_loader, optimizer, lr_scheduler, epoch, device, config)
-        logger.info("Loss reaches {}.".format(round(loss, 4)))
+        logger.info("Loss reaches {}.".format(loss))
