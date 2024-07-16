@@ -34,7 +34,7 @@ class Preprocess:
 
 
     def do_preprocess(self):
-        self._parse_soup_text()
+        self.df = self._parse_soup_text()
         self._clean_text("table_html")
         self._clean_text("question")
         self._clean_text("answer")
