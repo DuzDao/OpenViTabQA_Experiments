@@ -10,4 +10,6 @@ def preprocess_main(config):
     df_test = Preprocess(df_test, config).do_preprocess()
     df_dev = Preprocess(df_dev, config).do_preprocess()
 
-    Preprocess.save_data((df_train, df_dev, df_test))
+    df_train.to_csv(config["dataset"]["preprocessed"]["train"])
+    df_test.to_csv(config["dataset"]["preprocessed"]["test"])
+    df_dev.to_csv(config["dataset"]["preprocessed"]["dev"])

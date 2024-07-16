@@ -38,17 +38,5 @@ class Preprocess:
         self._clean_text("table_html")
         self._clean_text("question")
         self._clean_text("answer")
+
         return self.df
-
-
-    @staticmethod
-    def save_data(self, dfs):
-        """
-        Save all preprocessed dfs to save_dir in csv format.
-        ----------
-        dfs: pd.DataFrame   | [train & dev & test]
-        """
-        df_train, df_dev, df_test = dfs
-        df_train.to_csv(self.train_path, index=False)
-        df_dev.to_csv(self.dev_path, index=False)
-        df_test.to_csv(self.test_path, index=False)
