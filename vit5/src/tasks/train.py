@@ -39,12 +39,23 @@ def eval(model, tokenizer, eval_loader, epoch, device, config):
     model.eval()
     total_loss = 0.0
     total_cnt = 0
+
+    # turn off gradient_checkpointing and use cache
+    model.gradient_checkpointing_disable()
+    model.config.use_cache = True
+
+
     with torch.no_grad(), autocast():
         for batch in tqdm(eval_loader, "Eval epoch {}".format(epoch)):
             inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
             outs = model(input_ids = inputs, labels = labels)
             total_loss += outs.loss.item()
             total_cnt += 1
+
+    # turn on gradient_checkpointing for train func and turn off use cache
+    model.gradient_checkpointing_enable()
+    model.config.use_cache = False
+
     return total_loss/total_cnt
 
 
@@ -91,6 +102,7 @@ def train_main(config, logger):
     model = AutoModelForSeq2SeqLM.from_pretrained(config["pretrained_name"])
 
     # enable gradient checkpointing
+    model.config.use_cache = False
     model.gradient_checkpointing_enable()
 
     # optimizer
