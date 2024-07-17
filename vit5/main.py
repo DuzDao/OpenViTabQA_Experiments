@@ -4,6 +4,7 @@ import argparse
 from tqdm import tqdm
 
 from src.tasks.train import train_main
+from src.tasks.inference import predict
 from src.tasks.preprocess_data import preprocess_main
 
 LOG_LEVEL = "DEBUG"
@@ -32,8 +33,10 @@ def main(args):
         train_main(config, logger)
     elif args.task == "preprocess":
         preprocess_main(config)
+    elif args.task in ["predict", "inference"]:
+        predict(config)
     else:
-        raise ValueError("Only support task named 'train'!")
+        raise ValueError("Only support task named 'train' | 'preprocess' | 'predict' or 'inference'!")
 
 
 if __name__ == "__main__":

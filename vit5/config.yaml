@@ -24,3 +24,4 @@ train:
   early_stopping_patience: 5
 
 pretrained_name: VietAI/vit5-large
+predicted_path: ... # where to save the predicted file
