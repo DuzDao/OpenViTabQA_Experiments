@@ -90,6 +90,9 @@ def train_main(config, logger):
     tokenizer = AutoTokenizer.from_pretrained(config["pretrained_name"])
     model = AutoModelForSeq2SeqLM.from_pretrained(config["pretrained_name"])
 
+    # enable gradient checkpointing
+    model.gradient_checkpointing_enable()
+
     # optimizer
     optimizer = AdamW(model.parameters(), config["train"]["lr"])
 
