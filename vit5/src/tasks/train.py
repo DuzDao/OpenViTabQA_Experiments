@@ -17,7 +17,7 @@ def train(model, tokenizer, train_loader, optimizer, epoch, device, config):
 
         outs = model(input_ids = inputs, labels = labels)
         loss = outs.loss
-        total_loss += loss
+        total_loss += loss.item()
         total_cnt += 1
         loss.backward()
         optimizer.step()
@@ -35,7 +35,7 @@ def eval(model, tokenizer, eval_loader, epoch, device, config):
         for batch in tqdm(eval_loader, "Eval epoch {}".format(epoch)):
             inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
             outs = model(input_ids = inputs, labels = labels)
-            total_loss += outs.loss
+            total_loss += outs.loss.item()
             total_cnt += 1
     return total_loss, total_loss/total_cnt
 
