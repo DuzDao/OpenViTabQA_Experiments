@@ -79,8 +79,8 @@ def train_main(config, logger):
     logger.info("LOADED DATASET")
 
     # tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained("VietAI/vit5-base")
-    model = AutoModelForSeq2SeqLM.from_pretrained("VietAI/vit5-base")
+    tokenizer = AutoTokenizer.from_pretrained(config["pretrained_name"])
+    model = AutoModelForSeq2SeqLM.from_pretrained(config["pretrained_name"])
 
     # optimizer
     optimizer = AdamW(model.parameters(), config["train"]["lr"])
