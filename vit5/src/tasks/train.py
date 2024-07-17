@@ -2,6 +2,7 @@ import os
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AdamW
+from torch.cuda.amp import autocast, GradScaler
 
 from src.dataset.tableqa_dataset import TableQADataset, get_dataloader
 
@@ -11,22 +12,26 @@ def train(model, tokenizer, train_loader, optimizer, epoch, device, config):
     model.train()
     total_loss = 0.0
     total_cnt = 0
+    scaler = GradScaler()
     accumulation_steps = config["train"]["accumulation_steps"]
 
     for i, batch in enumerate(tqdm(train_loader, desc="Training epoch {}".format(epoch))):
         inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
 
-        outs = model(input_ids = inputs, labels = labels)
-        loss = outs.loss / accumulation_steps
+        with autocast():
+            outs = model(input_ids = inputs, labels = labels)
+            loss = outs.loss / accumulation_steps
+
         total_loss += loss.item() * accumulation_steps
         total_cnt += 1
-        loss.backward()
+        scaler.scale(loss).backward()
 
         if (i + 1) % accumulation_steps == 0:
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             optimizer.zero_grad()
         
-    return total_loss, total_loss/total_cnt
+    return total_loss/total_cnt
 
 
 def eval(model, tokenizer, eval_loader, epoch, device, config):
@@ -34,13 +39,13 @@ def eval(model, tokenizer, eval_loader, epoch, device, config):
     model.eval()
     total_loss = 0.0
     total_cnt = 0
-    with torch.no_grad():
+    with torch.no_grad(), autocast():
         for batch in tqdm(eval_loader, "Eval epoch {}".format(epoch)):
             inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
             outs = model(input_ids = inputs, labels = labels)
             total_loss += outs.loss.item()
             total_cnt += 1
-    return total_loss, total_loss/total_cnt
+    return total_loss/total_cnt
 
 
 def get_inputs_and_labels(tokenizer, config, batch, device):
@@ -103,11 +108,12 @@ def train_main(config, logger):
 
     # training
     for epoch in range(start_epoch, config["train"]["num_epochs"]):
-        total_loss, loss = train(model, tokenizer, train_loader, optimizer, epoch, device, config)
-        logger.info("Avg loss reaches {}.\nTotal loss reaches {}".format(loss, total_loss))
-        total_val_loss, val_loss = eval(model, tokenizer, dev_loader, epoch, device, config)
-        logger.info("Avg loss reaches {}.\nTotal loss reaches {}".format(val_loss, total_val_loss))
+        loss = train(model, tokenizer, train_loader, optimizer, epoch, device, config)
+        logger.info("Avg loss reaches {}.".format(loss))
+        val_loss = eval(model, tokenizer, dev_loader, epoch, device, config)
+        logger.info("Avg loss reaches {}.".format(val_loss))
         
+        # reduce cuda mem not use
         torch.cuda.empty_cache()
 
         # save best model by loss
