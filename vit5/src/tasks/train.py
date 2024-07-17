@@ -11,17 +11,20 @@ def train(model, tokenizer, train_loader, optimizer, epoch, device, config):
     model.train()
     total_loss = 0.0
     total_cnt = 0
+    accumulation_steps = config["train"]["accumulation_steps"]
 
-    for batch in tqdm(train_loader, desc="Training epoch {}".format(epoch)):
+    for i, batch in enumerate(tqdm(train_loader, desc="Training epoch {}".format(epoch))):
         inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
 
         outs = model(input_ids = inputs, labels = labels)
-        loss = outs.loss
-        total_loss += loss.item()
+        loss = outs.loss / accumulation_steps
+        total_loss += loss.item() * accumulation_steps
         total_cnt += 1
         loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+
+        if (i + 1) % accumulation_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()
         
     return total_loss, total_loss/total_cnt
 
