@@ -105,6 +105,8 @@ def train_main(config, logger):
         total_val_loss, val_loss = eval(model, tokenizer, dev_loader, epoch, device, config)
         logger.info("Avg loss reaches {}.\nTotal loss reaches {}".format(val_loss, total_val_loss))
         
+        torch.cuda.empty_cache()
+
         # save best model by loss
         early_stopping_cnt = 0
         if val_loss < best_val_loss:
