@@ -1,7 +1,6 @@
 from loguru import logger
 import yaml
 import argparse
-from tqdm import tqdm
 
 from src.tasks.train import train_main
 from src.tasks.inference import predict
@@ -22,7 +21,6 @@ def main(args):
                colorize=LOG_COLORIZE,
                backtrace=LOG_BACKTRACK,
                diagnose=LOG_DIAGNOSE)
-    logger.add(tqdm.write)
 
     # read config file
     with open(args.conf) as conf_file:

@@ -60,7 +60,7 @@ def eval(model, tokenizer, eval_loader, epoch, device, config):
 
 
 def get_inputs_and_labels(tokenizer, config, batch, device):
-    questions, answers, tables = batch["questions"], batch["answers"], batch["table"]
+    questions, answers, tables = batch["questions"], batch["answers"], batch["tables"]
     inputs = tokenizer(questions, tables,
                         padding=config["tokenizer"]["padding"],
                         truncation=config["tokenizer"]["truncation"],
@@ -124,9 +124,9 @@ def train_main(config, logger):
     # training
     for epoch in range(start_epoch, config["train"]["num_epochs"]):
         loss = train(model, tokenizer, train_loader, optimizer, epoch, device, config)
-        logger.info("Avg loss reaches {}.".format(loss))
+        logger.info("Avg train loss reaches {}.".format(loss))
         val_loss = eval(model, tokenizer, dev_loader, epoch, device, config)
-        logger.info("Avg loss reaches {}.".format(val_loss))
+        logger.info("Avg eval loss reaches {}.".format(val_loss))
         
         # reduce cuda mem not use
         torch.cuda.empty_cache()

@@ -1,12 +1,12 @@
 dataset:
   raw: 
-    train: ...
-    dev: ...
-    test: ...
+    train: /src/data/raw/train.csv
+    dev: /src/data/raw/dev.csv
+    test: /src/data/raw/test.csv
   preprocessed:
-    train: /content/OpenViTabQA_Experiments/vit5/src/data/train.csv
-    dev: /content/OpenViTabQA_Experiments/vit5/src/data/dev.csv
-    test: /content/OpenViTabQA_Experiments/vit5/src/data/test.csv
+    train: /src/data/preprocessed/train.csv
+    dev: /src/data/preprocessed/dev.csv
+    test: /src/data/preprocessed/test.csv
 
 tokenizer: 
   padding: max_length
@@ -18,12 +18,12 @@ tokenizer:
 
 train:
   checkpoint_dir: /content/drive/MyDrive/tableqa/checkpoint
-  bs: 4
+  bs: 1
   num_epochs: 100
   lr: 0.00002
-  early_stopping_patience: 5
+  early_stopping_patience: 1
   accumulation_steps: 4
 
 
-pretrained_name: VietAI/vit5-large
+pretrained_name: VietAI/vit5-base
 predicted_path: ... # where to save the predicted file
