@@ -37,8 +37,8 @@ class Preprocess:
     
     def do_preprocess(self):
         tqdm.pandas(desc="Doing preprocessing...")
-        self.df["table"] = self.df["table_html"].apply(lambda x: self._get_table(x))
-        self.df["question"] = self.df["question"].apply(self._clean_text)
-        self.df["answer"] = self.df["answer"].apply(self._clean_text)
+        self.df["table"] = self.df["table_html"].progress_apply(lambda x: self._get_table(x))
+        self.df["question"] = self.df["question"].progress_apply(self._clean_text)
+        self.df["answer"] = self.df["answer"].progress_apply(self._clean_text)
         return self.df
     
