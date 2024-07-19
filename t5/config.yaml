@@ -1,8 +1,8 @@
 dataset:
   raw: 
-    train: /src/data/raw/train.csv
-    dev: /src/data/raw/dev.csv
-    test: /src/data/raw/test.csv
+    train: /src/data/train.csv
+    dev: /src/data/dev.csv
+    test: /src/data/test.csv
   preprocessed:
     train: /src/data/preprocessed/train.csv
     dev: /src/data/preprocessed/dev.csv

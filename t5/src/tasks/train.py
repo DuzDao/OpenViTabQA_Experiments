@@ -101,6 +101,11 @@ def train_main(config, logger):
     tokenizer = AutoTokenizer.from_pretrained(config["pretrained_name"])
     model = AutoModelForSeq2SeqLM.from_pretrained(config["pretrained_name"])
 
+    # add more special tokens
+    special_tokens_dict = {'additional_special_tokens': ['<eoc>', '<eor>']}
+    tokenizer.add_special_tokens(special_tokens_dict)
+    model.resize_token_embeddings(len(tokenizer))
+
     # enable gradient checkpointing
     model.config.use_cache = False
     model.gradient_checkpointing_enable()
