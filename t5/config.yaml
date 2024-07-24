@@ -23,6 +23,7 @@ train:
   lr: 0.00002
   early_stopping_patience: 1
   accumulation_steps: 4
+  warmup_ratio: 0.03
 
 
 pretrained_name: VietAI/vit5-base
