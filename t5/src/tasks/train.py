@@ -12,13 +12,13 @@ def train(model, tokenizer, train_loader, optimizer, scheduler, epoch, device, c
     model.train()
     total_loss = 0.0
     total_cnt = 0
-    scaler = GradScaler()
+    scaler = GradScaler("cuda")
     accumulation_steps = config["train"]["accumulation_steps"]
 
     for i, batch in enumerate(tqdm(train_loader, desc="Training epoch {}".format(epoch))):
         inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
 
-        with autocast():
+        with autocast("cuda"):
             outs = model(input_ids = inputs, labels = labels)
             loss = outs.loss / accumulation_steps
 
@@ -46,7 +46,7 @@ def eval(model, tokenizer, eval_loader, epoch, device, config):
     model.config.use_cache = True
 
 
-    with torch.no_grad(), autocast():
+    with torch.no_grad(), autocast("cuda"):
         for batch in tqdm(eval_loader, "Eval epoch {}".format(epoch)):
             inputs, labels = get_inputs_and_labels(tokenizer, config, batch, device)
             outs = model(input_ids = inputs, labels = labels)
