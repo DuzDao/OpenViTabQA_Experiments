@@ -103,7 +103,7 @@ def train_main(config, logger):
     model = AutoModelForSeq2SeqLM.from_pretrained(config["pretrained_name"])
 
     # add more special tokens
-    special_tokens_dict = {'additional_special_tokens': ['<eoc>', '<eor>']}
+    special_tokens_dict = {'additional_special_tokens': ['<eoc>', '<eor>', "[HEADER]"]}
     tokenizer.add_special_tokens(special_tokens_dict)
     model.resize_token_embeddings(len(tokenizer))
 
