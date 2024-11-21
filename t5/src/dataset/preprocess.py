@@ -10,6 +10,8 @@ class Preprocess:
         """
         text: str   | [text need to clean]
         """
+        if type(text) != str:
+            text = "nul"
         text = text.lower()
         text = text.replace("\n", "")
         text = text.replace("\t", "")
