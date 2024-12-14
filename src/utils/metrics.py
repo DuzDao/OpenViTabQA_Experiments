@@ -3,24 +3,35 @@ from nltk.translate.meteor_score import meteor_score
 from collections import Counter
 import string
 import re
+import unicodedata
+from underthesea import word_tokenize
 
 def normalize_answer(s):
-    """Lower text and remove punctuation, articles and extra whitespace."""
-    def remove_articles(text):
-        return re.sub(r'\b(a|an|the)\b', ' ', text)
-
-    def white_space_fix(text):
-        return ' '.join(text.split())
+    """
+    Normalizes a Vietnamese answer by:
+    - Lowercasing the text.
+    - Removing punctuation.
+    - Removing extra whitespace.
+    - Removing diacritics (accents).
+    """
+    def lower(text):
+        return text.lower()
 
     def remove_punc(text):
         exclude = set(string.punctuation)
         return ''.join(ch for ch in text if ch not in exclude)
 
-    def lower(text):
-        return text.lower()
+    def white_space_fix(text):
+        return ' '.join(text.split())
 
-    return white_space_fix(remove_articles(remove_punc(lower(s))))
-
+    def remove_diacritics(text):
+        """
+        Removes diacritics (accents) from Vietnamese text.
+        """
+        normalized = unicodedata.normalize('NFKD', text)
+        return re.sub(r'[\u0300-\u036f]', '', normalized)
+    
+    return white_space_fix(remove_diacritics(remove_punc(lower(s))))
 
 def exact_match_score(prediction, ground_truth):
     """Computes the exact match score."""
@@ -69,12 +80,33 @@ def rouge_1_score(prediction, ground_truth):
     return f1
 
 
-def meteor_score_metric(prediction, ground_truth):
-    """Computes the METEOR score."""
-    try:
-      return meteor_score([normalize_answer(ground_truth)], normalize_answer(prediction))
-    except:
-      return 0.0
+def meteor_score_metric(references, hypothesis):
+    """
+    Calculates the METEOR score between a reference (or list of references) and a hypothesis.
+
+    Args:
+        references: The correct answer(s) (string, list of strings, or list of lists of strings).
+        hypothesis: The model's prediction (string or list of strings).
+
+    Returns:
+        The METEOR score (float between 0 and 1).
+    """
+
+    if isinstance(hypothesis, str):
+        hypothesis = [hypothesis]
+
+    if isinstance(references, str):
+        references = [references]
+
+    total_meteor_score = 0
+    for ref, hypo in zip(references, hypothesis):
+        tokenized_ref = word_tokenize(ref) if isinstance(ref, str) else ref
+        tokenized_hypo = word_tokenize(hypo) if isinstance(hypo, str) else hypo
+        total_meteor_score += meteor_score([tokenized_ref], tokenized_hypo)
+
+
+    return total_meteor_score / len(hypothesis)
+
 
 
 def compute_metrics(predictions, ground_truths):
@@ -91,7 +123,7 @@ def compute_metrics(predictions, ground_truths):
     em_scores = [exact_match_score(p, g) for p, g in zip(predictions, ground_truths)]
     f1_scores = [f1_score(p, g) for p, g in zip(predictions, ground_truths)]
     rouge1_scores = [rouge_1_score(p, g) for p, g in zip(predictions, ground_truths)]
-    meteor_scores = [meteor_score_metric(p, g) for p, g in zip(predictions, ground_truths)]
+    meteor_scores = [meteor_score_metric([normalize_answer(g)], normalize_answer(p)) for p, g in zip(predictions, ground_truths)] # Call my_meteor_score
 
     return {
         "em": sum(em_scores) / len(em_scores) if em_scores else 0,
