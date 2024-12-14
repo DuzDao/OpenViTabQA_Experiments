@@ -1,0 +1,7 @@
+torch
+transformers
+tqdm
+nltk
+beautifulsoup4
+requests
+numpy
