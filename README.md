@@ -164,22 +164,3 @@ Contributions to this project are welcome. Please feel free to submit a pull req
 
 This project is licensed under the [MIT License](LICENSE).
 ```
-
-**Cách sử dụng:**
-
-1.  **Tạo file `README.md`:** Tạo một file có tên `README.md` trong thư mục gốc của dự án.
-2.  **Copy nội dung:** Copy toàn bộ nội dung markdown ở trên vào file `README.md`.
-3.  **Tùy chỉnh:** Bạn có thể tùy chỉnh nội dung này cho phù hợp với dự án của mình.
-
-**Giải thích:**
-
-*   **Giới thiệu:** Mô tả ngắn gọn về dự án.
-*   **Cấu trúc dự án:** Giải thích chi tiết về cấu trúc thư mục và các file trong dự án.
-*   **Cài đặt:** Hướng dẫn cách cài đặt các thư viện và chuẩn bị dữ liệu.
-*   **Huấn luyện:** Hướng dẫn cách chạy script `main.py` và các tham số có thể tùy chỉnh.
-*   **Đánh giá:** Giải thích về quá trình đánh giá và các metrics được sử dụng.
-*   **Checkpoint:** Giải thích về cách lưu và tải checkpoint.
-*   **Đóng góp:** Hướng dẫn cách đóng góp vào dự án.
-*   **Giấy phép:** Thông tin về giấy phép mã nguồn mở.
-
-Với file `README.md` này, người khác sẽ dễ dàng hiểu và sử dụng dự án của bạn. Nếu bạn có bất kỳ câu hỏi nào khác, đừng ngần ngại hỏi nhé!
