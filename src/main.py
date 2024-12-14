@@ -1,12 +1,15 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 import argparse
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
 from src.models.vit5 import ViT5
 from src.datasets.vitabqa_dataset import ViTabQADataset
 from src.trainers.vit5_trainer import ViT5Trainer
 from transformers import T5Tokenizer
+import nltk
+nltk.download('wordnet')
+nltk.download('punkt')
 
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune ViT5 model on ViTabQA dataset.")
@@ -24,7 +27,8 @@ def main():
     parser.add_argument("--eval_steps", type=int, default=500, help="Number of training steps between evaluating on the validation set.")
     parser.add_argument("--load_checkpoint", type=str, default=None, help="Path to a checkpoint to load (optional).")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use for training (CPU or CUDA).")
-    parser.add_argument("--max_length", type=int, default=512, help="Maximum length for input sequences.") # Added max_length argument
+    parser.add_argument("--max_length", type=int, default=512, help="Maximum length for input sequences.")
+    parser.add_argument("--use_fp16", action="store_true", help="Use mixed precision training (FP16).") # Add use_fp16 argument
     
     args = parser.parse_args()
 
@@ -32,8 +36,8 @@ def main():
     tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model_name)
 
     # Load datasets
-    train_dataset = ViTabQADataset(data_path=args.train_data_path, tokenizer=tokenizer, max_length=args.max_length) # Pass max_length
-    val_dataset = ViTabQADataset(data_path=args.val_data_path, tokenizer=tokenizer, max_length=args.max_length) # Pass max_length
+    train_dataset = ViTabQADataset(data_path=args.train_data_path, tokenizer=tokenizer, max_length=args.max_length)
+    val_dataset = ViTabQADataset(data_path=args.val_data_path, tokenizer=tokenizer, max_length=args.max_length)
     
     # Initialize model
     model = ViT5(pretrained_model_name=args.pretrained_model_name)
@@ -52,7 +56,8 @@ def main():
         output_dir=args.output_dir,
         save_steps=args.save_steps,
         eval_steps=args.eval_steps,
-        device=torch.device(args.device)
+        device=torch.device(args.device),
+        use_fp16=args.use_fp16 # Pass use_fp16
     )
 
     # Load checkpoint if provided

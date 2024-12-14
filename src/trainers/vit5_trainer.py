@@ -12,7 +12,7 @@ import numpy as np
 class ViT5Trainer:
     def __init__(self, model, train_dataset, val_dataset, batch_size, learning_rate,
                  weight_decay, num_epochs, gradient_accumulation_steps,
-                 warmup_steps, output_dir, save_steps, eval_steps, device):
+                 warmup_steps, output_dir, save_steps, eval_steps, device, use_fp16=False): # Add use_fp16
         """
         Initializes the ViT5Trainer.
 
@@ -30,6 +30,7 @@ class ViT5Trainer:
             save_steps (int): Number of training steps between saving model checkpoints.
             eval_steps (int): Number of training steps between evaluating on the validation set.
             device (torch.device): Device to use for training (CPU or CUDA).
+            use_fp16 (bool): Whether to use mixed precision training (FP16).
         """
         self.model = model.to(device)
         self.train_dataset = train_dataset
@@ -44,9 +45,10 @@ class ViT5Trainer:
         self.save_steps = save_steps
         self.eval_steps = eval_steps
         self.device = device
+        self.use_fp16 = use_fp16
 
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
-        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, pin_memory=True) # Add pin_memory
+        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, pin_memory=True) # Add pin_memory
 
         self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         total_steps = len(self.train_dataloader) * self.num_epochs // self.gradient_accumulation_steps
@@ -56,6 +58,7 @@ class ViT5Trainer:
             os.makedirs(self.output_dir)
 
         self.log_history = [] # Store training and evaluation history
+        self.scaler = torch.cuda.amp.GradScaler() if self.use_fp16 else None # Initialize GradScaler
 
     def train(self):
         """Trains the ViT5 model."""
@@ -68,14 +71,24 @@ class ViT5Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
 
-                outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                loss = outputs.loss / self.gradient_accumulation_steps
-                loss.backward()
+                self.optimizer.zero_grad() # Move zero_grad here
+
+                with torch.cuda.amp.autocast(enabled=self.use_fp16): # Use autocast
+                    outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                    loss = outputs.loss / self.gradient_accumulation_steps
+
+                if self.use_fp16: # Use scaler
+                    self.scaler.scale(loss).backward()
+                else:
+                    loss.backward()
 
                 if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
-                    self.optimizer.step()
+                    if self.use_fp16: # Use scaler
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                    else:
+                        self.optimizer.step()
                     self.scheduler.step()
-                    self.optimizer.zero_grad()
                     global_step += 1
                     progress_bar.set_postfix({"loss": loss.item() * self.gradient_accumulation_steps})
 
@@ -103,8 +116,9 @@ class ViT5Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
 
-                outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                val_loss += outputs.loss.item()
+                with torch.cuda.amp.autocast(enabled=self.use_fp16): # Use autocast
+                    outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                    val_loss += outputs.loss.item()
 
                 generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=512)
                 predictions = self.model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
@@ -136,7 +150,8 @@ class ViT5Trainer:
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
-            "step": step
+            "step": step,
+            "scaler_state_dict": self.scaler.state_dict() if self.use_fp16 else None # Save scaler state
         }, checkpoint_path)
         print(f"Checkpoint saved at step {step} to {checkpoint_path}")
 
@@ -153,6 +168,9 @@ class ViT5Trainer:
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        if self.use_fp16 and checkpoint["scaler_state_dict"]: # Load scaler state
+            self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
         step = checkpoint["step"]
         print(f"Checkpoint loaded from {checkpoint_path} at step {step}")
         return step
+    
