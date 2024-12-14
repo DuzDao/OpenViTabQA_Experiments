@@ -1,10 +1,9 @@
-import nltk
-from nltk.translate.meteor_score import meteor_score
 from collections import Counter
 import string
 import re
 import unicodedata
 from underthesea import word_tokenize
+from nltk.translate.meteor_score import meteor_score
 
 def normalize_answer(s):
     """
@@ -131,4 +130,3 @@ def compute_metrics(predictions, ground_truths):
         "rouge1": sum(rouge1_scores) / len(rouge1_scores) if rouge1_scores else 0,
         "meteor": sum(meteor_scores) / len(meteor_scores) if meteor_scores else 0
     }
-
