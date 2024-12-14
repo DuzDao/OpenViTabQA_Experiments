@@ -1,6 +1,7 @@
 import json
 import os
 from utils import flatten_html_table, format_table
+from tqdm import tqdm 
 
 DATA_DIR = "data/raw"
 OUTPUT_DIR = "data/processed"
@@ -19,9 +20,9 @@ def process_data():
     with open(os.path.join(DATA_DIR, "table.json"), "r") as f:
         tables = {table["table_id"]: table["table_html"] for table in json.load(f)["table"]}
 
-    def _process_qa(qas, tables):
+    def _process_qa(qas, tables, name_set):
         processed_data = []
-        for qa in qas:
+        for qa in tqdm(qas, desc="Processing {} data...".format(name_set)):
             table_id = qa["table_id"]
             table_html = tables[table_id]
             table_flatten = format_table(flatten_html_table(table_html))
@@ -32,9 +33,9 @@ def process_data():
             })
         return processed_data
 
-    train_processed = _process_qa(train_qas, tables)
-    dev_processed = _process_qa(dev_qas, tables)
-    test_processed = _process_qa(test_qas, tables)
+    train_processed = _process_qa(train_qas, tables, "train")
+    dev_processed = _process_qa(dev_qas, tables, "dev")
+    test_processed = _process_qa(test_qas, tables, "test")
 
     with open(os.path.join(OUTPUT_DIR, "train.json"), "w") as f:
         json.dump(train_processed, f, indent=4)
