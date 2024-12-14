@@ -73,6 +73,7 @@ cd OpenViTabQA_Experiments
 ### 2. Install Dependencies
 
 ```bash
+pip install -U nltk
 pip install -r requirements.txt
 ```
 
@@ -120,6 +121,7 @@ To fine-tune the ViT5 model, run the `src/main.py` script with the desired argum
 python src/main.py \
     --batch_size 16 \
     --num_epochs 5 \
+    --pretrained_model_name VietAI/vit5-base \
     --output_dir vit5_output \
     --learning_rate 5e-5 \
     --weight_decay 0.01 \
@@ -127,7 +129,8 @@ python src/main.py \
     --warmup_steps 100 \
     --save_steps 500 \
     --eval_steps 500 \
-    --max_length 512
+    --max_length 512 \
+    --use_fp16
 ```
 
 **Arguments:**
