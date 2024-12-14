@@ -1,6 +1,8 @@
 import torch
 import argparse
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
 from src.models.vit5 import ViT5
 from src.datasets.vitabqa_dataset import ViTabQADataset
 from src.trainers.vit5_trainer import ViT5Trainer
