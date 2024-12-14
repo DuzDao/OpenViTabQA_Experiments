@@ -8,11 +8,13 @@ import os
 import json
 from src.utils.metrics import compute_metrics
 import numpy as np
+from torch.utils.checkpoint import checkpoint
 
 class ViT5Trainer:
     def __init__(self, model, train_dataset, val_dataset, batch_size, learning_rate,
                  weight_decay, num_epochs, gradient_accumulation_steps,
-                 warmup_steps, output_dir, save_steps, eval_steps, device, use_fp16=False):
+                 warmup_steps, output_dir, save_steps, eval_steps, device, use_fp16=False,
+                 use_gradient_checkpointing=False, initial_batch_size=None, cpu_offload=False): # Add new params
         """
         Initializes the ViT5Trainer.
 
@@ -31,6 +33,9 @@ class ViT5Trainer:
             eval_steps (int): Number of training steps between evaluating on the validation set.
             device (torch.device): Device to use for training (CPU or CUDA).
             use_fp16 (bool): Whether to use mixed precision training (FP16).
+            use_gradient_checkpointing (bool): Whether to use gradient checkpointing.
+            initial_batch_size (int): Initial batch size for dynamic batch size.
+            cpu_offload (bool): Whether to offload model to CPU during evaluation.
         """
         self.model = model.to(device)
         self.train_dataset = train_dataset
@@ -46,11 +51,15 @@ class ViT5Trainer:
         self.eval_steps = eval_steps
         self.device = device
         self.use_fp16 = use_fp16
+        self.use_gradient_checkpointing = use_gradient_checkpointing
+        self.initial_batch_size = initial_batch_size if initial_batch_size else batch_size
+        self.cpu_offload = cpu_offload
+        self.current_batch_size = self.initial_batch_size
 
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
-        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, pin_memory=True)
+        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
+        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, pin_memory=True) # Keep val bs fixed
 
-        self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay, fused=True) if torch.cuda.is_available() else AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay) # Use fused AdamW
         total_steps = len(self.train_dataloader) * self.num_epochs // self.gradient_accumulation_steps
         self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=self.warmup_steps, num_training_steps=total_steps)
 
@@ -59,6 +68,19 @@ class ViT5Trainer:
 
         self.log_history = [] # Store training and evaluation history
         self.scaler = torch.cuda.amp.GradScaler() if self.use_fp16 else None # Initialize GradScaler
+
+    def _forward(self, input_ids, attention_mask, labels):
+        """Forward pass with gradient checkpointing."""
+        if self.use_gradient_checkpointing:
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return module(*inputs)
+                return custom_forward
+            
+            outputs = checkpoint(create_custom_forward(self.model), input_ids, attention_mask, labels)
+            return outputs
+        else:
+            return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
 
     def train(self):
         """Trains the ViT5 model."""
@@ -73,8 +95,8 @@ class ViT5Trainer:
 
                 self.optimizer.zero_grad()
 
-                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16): # Use torch.amp.autocast
-                    outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16):
+                    outputs = self._forward(input_ids, attention_mask, labels)
                     loss = outputs.loss / self.gradient_accumulation_steps
 
                 if self.use_fp16:
@@ -88,9 +110,24 @@ class ViT5Trainer:
                         self.scaler.update()
                     else:
                         self.optimizer.step()
+                    
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0) # Gradient Clipping
+                    
                     self.scheduler.step()
                     global_step += 1
                     progress_bar.set_postfix({"loss": loss.item() * self.gradient_accumulation_steps})
+                    
+                    # Dynamic Batch Size
+                    if self.initial_batch_size:
+                        memory_usage = torch.cuda.memory_allocated() / 1024 ** 3 # Convert to GB
+                        if memory_usage < 0.8 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3:
+                            self.current_batch_size = min(self.batch_size, self.current_batch_size * 2)
+                            self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
+                            progress_bar.reset()
+                        elif memory_usage > 0.95 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3 and self.current_batch_size > 1:
+                            self.current_batch_size = max(1, self.current_batch_size // 2)
+                            self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
+                            progress_bar.reset()
 
                     if global_step % self.save_steps == 0:
                         self._save_checkpoint(global_step)
@@ -106,6 +143,8 @@ class ViT5Trainer:
 
     def _evaluate(self, step, epoch_end=False):
         """Evaluates the model on the validation set."""
+        if self.cpu_offload:
+            self.model.to('cpu') # Offload to CPU
         self.model.eval()
         all_predictions = []
         all_ground_truths = []
@@ -116,7 +155,7 @@ class ViT5Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
 
-                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16): # Use torch.amp.autocast
+                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16):
                     outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     val_loss += outputs.loss.item()
 
@@ -148,6 +187,8 @@ class ViT5Trainer:
         self.log_history.append(log_entry)
         
         print(f"\nEvaluation at step {step}: Val Loss: {val_loss:.4f}, EM: {metrics['em']:.4f}, F1: {metrics['f1']:.4f}, ROUGE-1: {metrics['rouge1']:.4f}, METEOR: {metrics['meteor']:.4f}")
+        if self.cpu_offload:
+            self.model.to(self.device) # Move back to GPU
         self.model.train() # Set model back to train mode after evaluation
 
     def _save_checkpoint(self, step, epoch_end=False):
@@ -179,5 +220,5 @@ class ViT5Trainer:
             self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
         step = checkpoint["step"]
         print(f"Checkpoint loaded from {checkpoint_path} at step {step}")
-        return 
+        return step
     
