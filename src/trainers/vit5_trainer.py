@@ -12,7 +12,7 @@ import numpy as np
 class ViT5Trainer:
     def __init__(self, model, train_dataset, val_dataset, batch_size, learning_rate,
                  weight_decay, num_epochs, gradient_accumulation_steps,
-                 warmup_steps, output_dir, save_steps, eval_steps, device, use_fp16=False): # Add use_fp16
+                 warmup_steps, output_dir, save_steps, eval_steps, device, use_fp16=False):
         """
         Initializes the ViT5Trainer.
 
@@ -47,8 +47,8 @@ class ViT5Trainer:
         self.device = device
         self.use_fp16 = use_fp16
 
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, pin_memory=True) # Add pin_memory
-        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, pin_memory=True) # Add pin_memory
+        self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, pin_memory=True)
 
         self.optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         total_steps = len(self.train_dataloader) * self.num_epochs // self.gradient_accumulation_steps
@@ -71,19 +71,19 @@ class ViT5Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
 
-                self.optimizer.zero_grad() # Move zero_grad here
+                self.optimizer.zero_grad()
 
-                with torch.cuda.amp.autocast(enabled=self.use_fp16): # Use autocast
+                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16): # Use torch.amp.autocast
                     outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     loss = outputs.loss / self.gradient_accumulation_steps
 
-                if self.use_fp16: # Use scaler
+                if self.use_fp16:
                     self.scaler.scale(loss).backward()
                 else:
                     loss.backward()
 
                 if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
-                    if self.use_fp16: # Use scaler
+                    if self.use_fp16:
                         self.scaler.step(self.optimizer)
                         self.scaler.update()
                     else:
@@ -116,13 +116,20 @@ class ViT5Trainer:
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
 
-                with torch.cuda.amp.autocast(enabled=self.use_fp16): # Use autocast
+                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16): # Use torch.amp.autocast
                     outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     val_loss += outputs.loss.item()
 
                 generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=512)
                 predictions = self.model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
-                ground_truths = self.model.tokenizer.batch_decode(labels, skip_special_tokens=True)
+                
+                # Filter out invalid token IDs from labels before decoding
+                filtered_labels = []
+                for label_ids in labels:
+                    valid_label_ids = label_ids[label_ids != -100] # Filter out -100
+                    filtered_labels.append(valid_label_ids)
+                
+                ground_truths = self.model.tokenizer.batch_decode(filtered_labels, skip_special_tokens=True) # Decode filtered labels
                 all_predictions.extend(predictions)
                 all_ground_truths.extend(ground_truths)
 
@@ -151,7 +158,7 @@ class ViT5Trainer:
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "step": step,
-            "scaler_state_dict": self.scaler.state_dict() if self.use_fp16 else None # Save scaler state
+            "scaler_state_dict": self.scaler.state_dict() if self.use_fp16 else None
         }, checkpoint_path)
         print(f"Checkpoint saved at step {step} to {checkpoint_path}")
 
@@ -168,9 +175,9 @@ class ViT5Trainer:
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-        if self.use_fp16 and checkpoint["scaler_state_dict"]: # Load scaler state
+        if self.use_fp16 and checkpoint["scaler_state_dict"]:
             self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
         step = checkpoint["step"]
         print(f"Checkpoint loaded from {checkpoint_path} at step {step}")
-        return step
+        return 
     
