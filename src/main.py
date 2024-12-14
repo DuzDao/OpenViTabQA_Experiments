@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--eval_steps", type=int, default=500, help="Number of training steps between evaluating on the validation set.")
     parser.add_argument("--load_checkpoint", type=str, default=None, help="Path to a checkpoint to load (optional).")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use for training (CPU or CUDA).")
+    parser.add_argument("--max_length", type=int, default=512, help="Maximum length for input sequences.") # Added max_length argument
     
     args = parser.parse_args()
 
@@ -29,8 +30,8 @@ def main():
     tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model_name)
 
     # Load datasets
-    train_dataset = ViTabQADataset(data_path=args.train_data_path, tokenizer=tokenizer)
-    val_dataset = ViTabQADataset(data_path=args.val_data_path, tokenizer=tokenizer)
+    train_dataset = ViTabQADataset(data_path=args.train_data_path, tokenizer=tokenizer, max_length=args.max_length) # Pass max_length
+    val_dataset = ViTabQADataset(data_path=args.val_data_path, tokenizer=tokenizer, max_length=args.max_length) # Pass max_length
     
     # Initialize model
     model = ViT5(pretrained_model_name=args.pretrained_model_name)
