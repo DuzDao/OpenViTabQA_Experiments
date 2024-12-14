@@ -17,7 +17,7 @@ def process_data():
     with open(os.path.join(DATA_DIR, "qas_test.json"), "r") as f:
         test_qas = json.load(f)["qas"]
     with open(os.path.join(DATA_DIR, "table.json"), "r") as f:
-        tables = {table["table_id"]: table["table_html"] for table in json.load(f)["tables"]}
+        tables = {table["table_id"]: table["table_html"] for table in json.load(f)["table"]}
 
     def _process_qa(qas, tables):
         processed_data = []
