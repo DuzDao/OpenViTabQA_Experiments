@@ -144,7 +144,7 @@ class ViT5Trainer:
             
             # Save checkpoint at the end of each epoch
             self._save_checkpoint(global_step, epoch_end=True)
-            self._evaluate(global_step, epoch_end=True)
+            self._evaluate(global_step, epoch_end=True) # Pass epoch_end=True
 
         # Save training log history
         self._save_log_history()
@@ -152,17 +152,17 @@ class ViT5Trainer:
     def _evaluate(self, step, epoch_end=False):
         """Evaluates the model on the validation set."""
         if self.cpu_offload:
-            self.model.to('cpu') # Offload to CPU
-        self.model.to(self.device) # Ensure model is on the correct device
+            self.model.to('cpu')
+        self.model.to(self.device)
         self.model.eval()
         all_predictions = []
         all_ground_truths = []
         val_loss = 0.0
         with torch.no_grad():
             for batch in tqdm(self.val_dataloader, desc="Evaluating"):
-                input_ids = batch["input_ids"].to(self.device) # Move input_ids to device
-                attention_mask = batch["attention_mask"].to(self.device) # Move attention_mask to device
-                labels = batch["labels"].to(self.device) # Move labels to device
+                input_ids = batch["input_ids"].to(self.device)
+                attention_mask = batch["attention_mask"].to(self.device)
+                labels = batch["labels"].to(self.device)
 
                 with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16):
                     outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
@@ -197,7 +197,7 @@ class ViT5Trainer:
         
         print(f"\nEvaluation at step {step}: Val Loss: {val_loss:.4f}, EM: {metrics['em']:.4f}, F1: {metrics['f1']:.4f}, ROUGE-1: {metrics['rouge1']:.4f}, METEOR: {metrics['meteor']:.4f}")
         if self.cpu_offload:
-            self.model.to(self.device) # Move back to GPU
+            self.model.to(self.device)
         self.model.train()
 
     def _save_checkpoint(self, step, epoch_end=False):
