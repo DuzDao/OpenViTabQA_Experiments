@@ -88,10 +88,10 @@ class ViT5Trainer:
     def train(self):
         """Trains the ViT5 model."""
         global_step = 0
-        completed_steps = 0 # Initialize completed steps
+        completed_steps = 0
         for epoch in range(self.num_epochs):
             self.model.train()
-            progress_bar = tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}", initial=completed_steps, total=len(self.train_dataloader)) # Initialize progress bar with completed steps
+            progress_bar = tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}", initial=completed_steps, total=len(self.train_dataloader))
             for batch_idx, batch in enumerate(progress_bar):
                 input_ids = batch["input_ids"].to(self.device)
                 attention_mask = batch["attention_mask"].to(self.device)
@@ -126,16 +126,16 @@ class ViT5Trainer:
                         memory_usage = torch.cuda.memory_allocated() / 1024 ** 3
                         if memory_usage < 0.8 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3:
                             self.current_batch_size = min(self.batch_size, self.current_batch_size * 2)
-                            completed_steps = progress_bar.n # Save completed steps
+                            completed_steps = progress_bar.n
                             self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
-                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps) # Reset progress bar with new total and completed steps
+                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps)
                         elif memory_usage > 0.95 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3 and self.current_batch_size > 1:
                             self.current_batch_size = max(1, self.current_batch_size // 2)
-                            completed_steps = progress_bar.n # Save completed steps
+                            completed_steps = progress_bar.n
                             self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
-                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps) # Reset progress bar with new total and completed steps
+                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps)
                     
-                completed_steps = progress_bar.n # Update completed steps
+                completed_steps = progress_bar.n
                 
                 if global_step % self.save_steps == 0:
                     self._save_checkpoint(global_step)
@@ -152,16 +152,17 @@ class ViT5Trainer:
     def _evaluate(self, step, epoch_end=False):
         """Evaluates the model on the validation set."""
         if self.cpu_offload:
-            self.model.to('cpu')
+            self.model.to('cpu') # Offload to CPU
+        self.model.to(self.device) # Ensure model is on the correct device
         self.model.eval()
         all_predictions = []
         all_ground_truths = []
         val_loss = 0.0
         with torch.no_grad():
             for batch in tqdm(self.val_dataloader, desc="Evaluating"):
-                input_ids = batch["input_ids"].to(self.device)
-                attention_mask = batch["attention_mask"].to(self.device)
-                labels = batch["labels"].to(self.device)
+                input_ids = batch["input_ids"].to(self.device) # Move input_ids to device
+                attention_mask = batch["attention_mask"].to(self.device) # Move attention_mask to device
+                labels = batch["labels"].to(self.device) # Move labels to device
 
                 with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16):
                     outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
@@ -196,7 +197,7 @@ class ViT5Trainer:
         
         print(f"\nEvaluation at step {step}: Val Loss: {val_loss:.4f}, EM: {metrics['em']:.4f}, F1: {metrics['f1']:.4f}, ROUGE-1: {metrics['rouge1']:.4f}, METEOR: {metrics['meteor']:.4f}")
         if self.cpu_offload:
-            self.model.to(self.device)
+            self.model.to(self.device) # Move back to GPU
         self.model.train()
 
     def _save_checkpoint(self, step, epoch_end=False):
