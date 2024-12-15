@@ -18,7 +18,7 @@ def process_data():
     with open(os.path.join(DATA_DIR, "qas_test.json"), "r") as f:
         test_qas = json.load(f)["qas"]
     with open(os.path.join(DATA_DIR, "table.json"), "r") as f:
-        tables = json.load(f)["tables"]
+        tables = json.load(f)["table"]
 
     # Pre-process tables
     processed_tables = {}
@@ -55,4 +55,3 @@ def process_data():
 if __name__ == "__main__":
     process_data()
     print("Data processing completed.")
-    
