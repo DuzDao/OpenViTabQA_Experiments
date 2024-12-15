@@ -104,12 +104,12 @@ class ViT5Trainer:
                 with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16, dtype=torch.float16):
                     outputs = self._forward(input_ids, attention_mask, labels)
                     loss = outputs.loss / self.gradient_accumulation_steps
-
+                
                 if self.use_fp16:
                     self.scaler.scale(loss.float()).backward()
                 else:
                     loss.backward()
-
+                
                 if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
                     if self.use_fp16:
                         self.scaler.step(self.optimizer)
@@ -130,16 +130,18 @@ class ViT5Trainer:
                             self.current_batch_size = min(self.batch_size, self.current_batch_size * 2)
                             completed_steps = progress_bar.n
                             self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
-                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps)
+                            progress_bar.total = len(self.train_dataloader)
+                            progress_bar.n = completed_steps
                         elif memory_usage > 0.95 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3 and self.current_batch_size > 1:
                             self.current_batch_size = max(1, self.current_batch_size // 2)
                             completed_steps = progress_bar.n
                             self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
-                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps)
+                            progress_bar.total = len(self.train_dataloader)
+                            progress_bar.n = completed_steps
                     
                 completed_steps = progress_bar.n
                 
-                if global_step % self.eval_steps == 0:
+                if global_step % self.eval_steps == 0 and global_step != 0:
                     self._evaluate(global_step)
             
             # Save checkpoint at the end of each epoch
