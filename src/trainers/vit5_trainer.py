@@ -75,12 +75,12 @@ class ViT5Trainer:
             def create_custom_forward(module):
                 def custom_forward(*inputs):
                     for input in inputs:
-                        if isinstance(input, torch.Tensor):
+                        if isinstance(input, torch.Tensor) and input.dtype == torch.float16: # Check dtype before setting requires_grad
                             input.requires_grad_(True)
                     return module(*inputs)
                 return custom_forward
             
-            outputs = checkpoint(create_custom_forward(self.model), input_ids, attention_mask, labels, use_reentrant=False) # Add use_reentrant=False
+            outputs = checkpoint(create_custom_forward(self.model), input_ids, attention_mask, labels, use_reentrant=False)
             return outputs
         else:
             return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
@@ -98,12 +98,12 @@ class ViT5Trainer:
 
                 self.optimizer.zero_grad()
 
-                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16, dtype=torch.float16): # Add dtype=torch.float16
+                with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16, dtype=torch.float16):
                     outputs = self._forward(input_ids, attention_mask, labels)
                     loss = outputs.loss / self.gradient_accumulation_steps
 
                 if self.use_fp16:
-                    self.scaler.scale(loss.float()).backward() # Convert loss to float32 before scaling
+                    self.scaler.scale(loss.float()).backward()
                 else:
                     loss.backward()
 
