@@ -75,7 +75,7 @@ class ViT5Trainer:
             def create_custom_forward(module):
                 def custom_forward(*inputs):
                     for input in inputs:
-                        if isinstance(input, torch.Tensor) and input.dtype == torch.float16: # Check dtype before setting requires_grad
+                        if isinstance(input, torch.Tensor) and input.dtype == torch.float16:
                             input.requires_grad_(True)
                     return module(*inputs)
                 return custom_forward
@@ -88,9 +88,10 @@ class ViT5Trainer:
     def train(self):
         """Trains the ViT5 model."""
         global_step = 0
+        completed_steps = 0 # Initialize completed steps
         for epoch in range(self.num_epochs):
             self.model.train()
-            progress_bar = tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}")
+            progress_bar = tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}", initial=completed_steps, total=len(self.train_dataloader)) # Initialize progress bar with completed steps
             for batch_idx, batch in enumerate(progress_bar):
                 input_ids = batch["input_ids"].to(self.device)
                 attention_mask = batch["attention_mask"].to(self.device)
@@ -125,17 +126,21 @@ class ViT5Trainer:
                         memory_usage = torch.cuda.memory_allocated() / 1024 ** 3
                         if memory_usage < 0.8 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3:
                             self.current_batch_size = min(self.batch_size, self.current_batch_size * 2)
+                            completed_steps = progress_bar.n # Save completed steps
                             self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
-                            progress_bar.reset()
+                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps) # Reset progress bar with new total and completed steps
                         elif memory_usage > 0.95 * torch.cuda.get_device_properties(0).total_memory / 1024 ** 3 and self.current_batch_size > 1:
                             self.current_batch_size = max(1, self.current_batch_size // 2)
+                            completed_steps = progress_bar.n # Save completed steps
                             self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
-                            progress_bar.reset()
-
-                    if global_step % self.save_steps == 0:
-                        self._save_checkpoint(global_step)
-                    if global_step % self.eval_steps == 0:
-                        self._evaluate(global_step)
+                            progress_bar.reset(total=len(self.train_dataloader), initial=completed_steps) # Reset progress bar with new total and completed steps
+                    
+                completed_steps = progress_bar.n # Update completed steps
+                
+                if global_step % self.save_steps == 0:
+                    self._save_checkpoint(global_step)
+                if global_step % self.eval_steps == 0:
+                    self._evaluate(global_step)
             
             # Save checkpoint at the end of each epoch
             self._save_checkpoint(global_step, epoch_end=True)
