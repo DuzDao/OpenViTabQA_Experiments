@@ -181,7 +181,7 @@ class ViT5Trainer:
                     outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     val_loss += outputs.loss.item()
 
-                generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=512)
+                generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=75)
                 predictions = self.model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
                 
                 # Filter out invalid token IDs from labels before decoding
