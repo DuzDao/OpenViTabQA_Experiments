@@ -99,6 +99,8 @@ class ViT5Trainer:
             self.model.train()
             progress_bar = tqdm(self.train_dataloader, desc=f"Epoch {epoch+1}/{self.num_epochs}", initial=completed_steps, total=len(self.train_dataloader))
             for batch_idx, batch in enumerate(progress_bar):
+                global_step += 1
+
                 input_ids = batch["input_ids"].to(self.device)
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
@@ -124,7 +126,6 @@ class ViT5Trainer:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                     
                     self.scheduler.step()
-                    global_step += 1
                     progress_bar.set_postfix({"loss": loss.item() * self.gradient_accumulation_steps})
                     
                     # Dynamic Batch Size
