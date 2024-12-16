@@ -68,8 +68,8 @@ class ViT5Trainer:
 
         self.log_history = []
         self.scaler = torch.amp.GradScaler('cuda') if self.use_fp16 else None
-        self.best_eval_metric = 0.0 # Initialize best evaluation metric
-        self.best_eval_step = 0 # Initialize best evaluation step
+        self.best_eval_metric = 0.0
+        self.best_eval_step = 0
 
     def _forward(self, input_ids, attention_mask, labels):
         """Forward pass with gradient checkpointing."""
@@ -104,12 +104,12 @@ class ViT5Trainer:
                 with torch.amp.autocast(device_type='cuda', enabled=self.use_fp16, dtype=torch.float16):
                     outputs = self._forward(input_ids, attention_mask, labels)
                     loss = outputs.loss / self.gradient_accumulation_steps
-                
+
                 if self.use_fp16:
                     self.scaler.scale(loss.float()).backward()
                 else:
                     loss.backward()
-                
+
                 if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
                     if self.use_fp16:
                         self.scaler.step(self.optimizer)
@@ -142,20 +142,16 @@ class ViT5Trainer:
                 completed_steps = progress_bar.n
                 
                 if global_step % self.eval_steps == 0 and global_step != 0:
-                    self._evaluate(global_step)
+                    eval_metrics = self._evaluate(global_step)
+                    if eval_metrics and eval_metrics > self.best_eval_metric:
+                        self.best_eval_metric = eval_metrics
+                        self.best_eval_step = global_step
+                        self._save_checkpoint(global_step)
             
-            # Save checkpoint at the end of each epoch
-            eval_metrics = self._evaluate(global_step, epoch_end=True)
-            if eval_metrics and eval_metrics > self.best_eval_metric:
-                self.best_eval_metric = eval_metrics
-                self.best_eval_step = global_step
-                self._save_checkpoint(global_step, epoch_end=True)
-            elif epoch_end:
-                self._save_checkpoint(global_step, epoch_end=True)
         # Save training log history
         self._save_log_history()
 
-    def _evaluate(self, step, epoch_end=False):
+    def _evaluate(self, step):
         """Evaluates the model on the validation set."""
         if self.cpu_offload:
             self.model.to('cpu')
@@ -197,7 +193,7 @@ class ViT5Trainer:
             "f1": metrics["f1"],
             "rouge1": metrics["rouge1"],
             "meteor": metrics["meteor"],
-            "epoch_end": epoch_end
+            "epoch_end": False
         }
         self.log_history.append(log_entry)
         
@@ -205,9 +201,7 @@ class ViT5Trainer:
         if self.cpu_offload:
             self.model.to(self.device)
         self.model.train()
-        if epoch_end:
-            return metrics["f1"] # Return eval metric
-        return None
+        return metrics["f1"]
 
     def _save_checkpoint(self, step, epoch_end=False):
         """Saves a model checkpoint."""
