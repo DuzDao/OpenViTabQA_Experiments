@@ -29,9 +29,10 @@ def main():
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use for training (CPU or CUDA).")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum length for input sequences.")
     parser.add_argument("--use_fp16", action="store_true", help="Use mixed precision training (FP16).")
-    parser.add_argument("--use_gradient_checkpointing", action="store_true", help="Use gradient checkpointing.") # Add gradient checkpointing
-    parser.add_argument("--initial_batch_size", type=int, default=None, help="Initial batch size for dynamic batch size.") # Add initial batch size
-    parser.add_argument("--cpu_offload", action="store_true", help="Offload model to CPU during evaluation.") # Add cpu offload
+    parser.add_argument("--use_gradient_checkpointing", action="store_true", help="Use gradient checkpointing.")
+    parser.add_argument("--initial_batch_size", type=int, default=None, help="Initial batch size for dynamic batch size.")
+    parser.add_argument("--cpu_offload", action="store_true", help="Offload model to CPU during evaluation.")
+    parser.add_argument("--early_stopping_patience", type=int, default=5, help="Number of epochs to wait for improvement before stopping.") # Add early_stopping_patience
     
     args = parser.parse_args()
 
@@ -63,7 +64,8 @@ def main():
         use_fp16=args.use_fp16,
         use_gradient_checkpointing=args.use_gradient_checkpointing,
         initial_batch_size=args.initial_batch_size,
-        cpu_offload=args.cpu_offload
+        cpu_offload=args.cpu_offload,
+        early_stopping_patience=args.early_stopping_patience
     )
 
     # Load checkpoint if provided

@@ -14,7 +14,8 @@ class ViT5Trainer:
     def __init__(self, model, train_dataset, val_dataset, batch_size, learning_rate,
                  weight_decay, num_epochs, gradient_accumulation_steps,
                  warmup_steps, output_dir, save_steps, eval_steps, device, use_fp16=False,
-                 use_gradient_checkpointing=False, initial_batch_size=None, cpu_offload=False):
+                 use_gradient_checkpointing=False, initial_batch_size=None, cpu_offload=False,
+                 early_stopping_patience=5):  # Add early_stopping_patience
         """
         Initializes the ViT5Trainer.
 
@@ -36,6 +37,7 @@ class ViT5Trainer:
             use_gradient_checkpointing (bool): Whether to use gradient checkpointing.
             initial_batch_size (int): Initial batch size for dynamic batch size.
             cpu_offload (bool): Whether to offload model to CPU during evaluation.
+            early_stopping_patience (int): Number of epochs to wait for improvement before stopping.
         """
         self.model = model.to(device)
         self.train_dataset = train_dataset
@@ -55,6 +57,7 @@ class ViT5Trainer:
         self.initial_batch_size = initial_batch_size if initial_batch_size else batch_size
         self.cpu_offload = cpu_offload
         self.current_batch_size = self.initial_batch_size
+        self.early_stopping_patience = early_stopping_patience
 
         self.train_dataloader = DataLoader(self.train_dataset, batch_size=self.current_batch_size, shuffle=True, pin_memory=True)
         self.val_dataloader = DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False, pin_memory=True)
@@ -70,6 +73,7 @@ class ViT5Trainer:
         self.scaler = torch.amp.GradScaler('cuda') if self.use_fp16 else None
         self.best_eval_metric = 0.0
         self.best_eval_step = 0
+        self.no_improvement_count = 0 # Initialize no improvement count
 
     def _forward(self, input_ids, attention_mask, labels):
         """Forward pass with gradient checkpointing."""
@@ -141,12 +145,18 @@ class ViT5Trainer:
                     
                 completed_steps = progress_bar.n
                 
-                if global_step % self.eval_steps == 0 and global_step != 0:
+                if global_step % self.eval_steps == 0:
                     eval_metrics = self._evaluate(global_step)
                     if eval_metrics and eval_metrics > self.best_eval_metric:
                         self.best_eval_metric = eval_metrics
                         self.best_eval_step = global_step
                         self._save_checkpoint(global_step)
+                        self.no_improvement_count = 0 # Reset no improvement count
+                    else:
+                        self.no_improvement_count += 1 # Increment no improvement count
+                        if self.no_improvement_count >= self.early_stopping_patience:
+                            print(f"Early stopping at epoch {epoch+1} and step {global_step} due to no improvement in validation metric.")
+                            return # Stop training
             
         # Save training log history
         self._save_log_history()
